@@ -88,16 +88,19 @@ class attackChain():
         sess = aiohttp.ClientSession(cookie_jar=jar)
         result = []
         for i in self.chain:
-            async with async_timeout.timeout(i["timeout"]):
-                sess._cookie_jar.update_cookies(i["cookies"])
-                if i["method"] == "POST":
-                    res = await sess.post(f"{i['schema']}{host}{i['route']}", data=i['data'], headers=i["headers"])
-                elif i["method"] == "GET":
-                    res = await sess.get(f"{i['schema']}{host}{i['route']}", headers=i["headers"])
-                else:
-                    raise Exception("Unsupported method")
-                if i["reqResult"]:
-                    result.append(await res.text())
+            try:
+                async with async_timeout.timeout(i["timeout"]):
+                    sess._cookie_jar.update_cookies(i["cookies"])
+                    if i["method"] == "POST":
+                        res = await sess.post(f"{i['schema']}{host}{i['route']}", data=i['data'], headers=i["headers"])
+                    elif i["method"] == "GET":
+                        res = await sess.get(f"{i['schema']}{host}{i['route']}", headers=i["headers"])
+                    else:
+                        raise Exception("Unsupported method")
+                    if i["reqResult"]:
+                        result.append(await res.text())
+            except asyncio.TimeoutError:
+                result.append(f"Time out in action {i}")            
         await sess.close()
         return {"host": host, "result": result}
 
