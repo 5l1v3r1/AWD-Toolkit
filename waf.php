@@ -5,7 +5,8 @@ error_reporting(0);
  ** 线下攻防php版本waf
  ** drop.wiki
  **
- ** 修改了一下, 将日志输出在 /tmp 省的有时候 www 用户没权限写
+ ** 原版来自 https://github.com/dr0op/k4l0ng_WAF/blob/master/drop_wiki.php
+ ** 修改了一下, 将日志输出在 /tmp, 不然有时候 www 用户没权限写
  ** 同时增加了对 /*! *\/ 的注入过滤和允许 HTTP HEAD 方法, 省的判宕机
  */
 class waf

