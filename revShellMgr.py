@@ -118,13 +118,18 @@ def main(lport):
             else:
                 if len(i) != 0:
                     help()
-        except KeyboardInterrupt:
-            i = input("\nPress 'Y' to confirm: ")
-            if i.strip().lower() == "y":
+        except (KeyboardInterrupt, EOFError):
+            while True:
+                i = ""
                 try:
-                    sck.close()
-                except Exception:
+                    i = input("\nPress 'Y' to confirm: ")
+                except (KeyboardInterrupt, EOFError):
                     pass
-                break
+                if i.strip().lower() == "y":
+                    try:
+                        sck.close()
+                    except Exception:
+                        pass
+                    return
 
 main(7777)
