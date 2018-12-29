@@ -91,11 +91,13 @@ def flush(placeholder):
 def help():
     print("[*] Help:")
     print("[1] exec [cmd]")
-    print("    Command after exec will be send to all shells\n")
+    print("    Command after exec will be send to all shells")
     print("[2] info")
-    print("    Get curr shell infos\n")
+    print("    Get curr shell infos")
     print("[3] dump (filename)")
     print("    Dump all result to file")
+    print("[4] flush")
+    print("    Dump all result and flush died shells and history")
 
 
 def main(lport):
