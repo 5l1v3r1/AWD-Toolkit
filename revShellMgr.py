@@ -28,6 +28,7 @@ def recv(sck, uuid):
 
 
 def send(cmd):
+    # 用来读 flag 的话, 可以 echo "|-->";cat /flag;echo "<--|"; 便于之后处理
     print(f"[*] Using {cmd}")
     cmd += "\n"
     count = 0
