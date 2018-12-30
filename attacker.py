@@ -32,7 +32,8 @@ def splitIp(victims, whiteList=[]):
         result = tmp
 
     for i in whiteList:
-        result.remove(i)
+        if i in result:
+            result.remove(i)
     return result
 
 

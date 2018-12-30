@@ -120,11 +120,10 @@ def main(lport):
                     help()
         except (KeyboardInterrupt, EOFError):
             while True:
-                i = ""
                 try:
                     i = input("\nPress 'Y' to confirm: ")
                 except (KeyboardInterrupt, EOFError):
-                    pass
+                    continue
                 if i.strip().lower() == "y":
                     try:
                         sck.close()
