@@ -125,7 +125,7 @@ class attackChain():
         for i in victims:
             t = asyncio.ensure_future(self.perform(i))
             tasks.append(t)
-            loop.run_until_complete(asyncio.wait(tasks))
+        loop.run_until_complete(asyncio.wait(tasks))
         for i in tasks:
             results.append(i.result())
         return results
