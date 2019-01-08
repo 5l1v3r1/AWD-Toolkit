@@ -1,17 +1,21 @@
 import json
 import requests
 
-COOKIE_FILE = "cookies.json"
-FLAG_FILE = "record.txt"
-
-
-def loadRecord(startTime):
-    f = open("record.txt").read()
+def loadRecord(filename, startTime):
+    f = open(filename).read()
     flags = []
     for l in f:
         l = json.loads(l)
     if int(l["ts"]) > int(startTime):
         flags.append(l["data"])
+    return flags
+
+
+def loadLines(filename):
+    f = open(filename).read()
+    f = f.strip("\n")
+    f = f.split("\n")
+    return f
 
 
 def submit(flags):

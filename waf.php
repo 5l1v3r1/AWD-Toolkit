@@ -1,6 +1,7 @@
 <?php
 error_reporting(0);
-//ini_set('display_errors', 1);
+// ini_set('display_errors', 1);
+// require_once 'waf.php';
 /*
  ** 线下攻防php版本waf
  ** drop.wiki
@@ -10,8 +11,7 @@ error_reporting(0);
  ** 同时增加了对 /*! *\/ 的注入过滤和允许 HTTP HEAD 方法, 省的判宕机
  */
 class waf
-{
-
+{   
     private $request_url;
     private $request_method;
     private $request_data;
