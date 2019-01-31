@@ -33,7 +33,7 @@ def recv(sck, uuid):
 
 
 def send(cmd):
-    # 用来读 flag 的话, 可以 echo "|-->";cat /flag;echo "<--|"; 便于之后处理
+    # 用来读 flag 的话, 可以 echo -n "#RANDOM--->";cat /flag;echo -n "<---STRING#"; 便于之后处理
     print "[*] Using %s" % cmd
     cmd += "\n"
     count = 0
@@ -64,13 +64,8 @@ def dump(filename):
     result = []
     for i in lootedShell:
         tmp = lootedShell[i]
-        try:
-            history = tmp["history"].decode('utf-8')
-            encoded = False
-        except Exception:
-            history = b64encode(tmp["history"])
-            encoded = True
-        result.append({"died": tmp["died"], "addr": tmp["addr"], "time": tmp["time"], "history": history, "encoded": encoded})
+        history = tmp["history"].decode('latin') # 只支持英文, 但是这样 json dump 起来方便
+        result.append({"died": tmp["died"], "addr": tmp["addr"], "time": tmp["time"], "history": history})
 
     if len(filename) == 0:
         filename = "dump-%f.json" % time.time()
@@ -83,8 +78,8 @@ def dump(filename):
     print "[*] Dump complete"
         
 
-def flush(placeholder):
-    dump("")
+def flush(filename):
+    dump(filename)
     for i in list(lootedShell):
         if lootedShell[i]["died"]:
             lootedShell.pop(i)
@@ -101,7 +96,7 @@ def help():
     print "    Get curr shell infos"
     print "[3] dump (filename)"
     print "    Dump all result to file"
-    print "[4] flush"
+    print "[4] flush (filename)"
     print "    Dump all result and flush died shells and history"
 
 
@@ -137,5 +132,7 @@ def main(lport):
                     except Exception:
                         pass
                     return
+                else:
+                    break
 
 main(7777)
