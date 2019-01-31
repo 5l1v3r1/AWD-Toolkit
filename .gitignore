@@ -3,3 +3,4 @@ __pycache__/
 record.txt
 private.pem
 public.pem
+dump*
