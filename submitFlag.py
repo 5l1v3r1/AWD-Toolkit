@@ -52,6 +52,3 @@ def submit(flags):
     for f in flags:
         res = sess.post("http://127.0.0.1/", data={"flag": f})
     print(res.text)
-
-
-print(loadDump("dump-1548928339.7051184.json", "#RANDOM#->([\S\s]*?)<-#RANDOM#"))
